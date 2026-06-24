@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useI18n } from '@/src/i18n';
 import {
   loadMemory, saveMemory, newId,
   type MemoryState, type ConversationContext,
 } from '@/src/storage/memory';
 
 export function MemoryPanel({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
   const [state, setState] = useState<MemoryState | null>(null);
 
   useEffect(() => { loadMemory().then(setState); }, []);
@@ -43,26 +45,26 @@ export function MemoryPanel({ onClose }: { onClose: () => void }) {
     <div style={overlay}>
       <div style={modal}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-          <strong>记忆管理</strong>
+          <strong>{t('memoryTitle')}</strong>
           <button onClick={onClose} style={closeX}>×</button>
         </div>
 
-        <div style={section}>用户画像</div>
-        <input style={inp} placeholder="身份/职业" value={s.profile.identity}
+        <div style={section}>{t('profileSection')}</div>
+        <input style={inp} placeholder={t('fieldIdentity')} value={s.profile.identity}
           onChange={(e) => update({ ...s, profile: { ...s.profile, identity: e.target.value } })} />
-        <input style={inp} placeholder="领域/专业" value={s.profile.domain}
+        <input style={inp} placeholder={t('fieldDomain')} value={s.profile.domain}
           onChange={(e) => update({ ...s, profile: { ...s.profile, domain: e.target.value } })} />
-        <input style={inp} placeholder="表达/技术偏好" value={s.profile.preferences}
+        <input style={inp} placeholder={t('fieldPreferences')} value={s.profile.preferences}
           onChange={(e) => update({ ...s, profile: { ...s.profile, preferences: e.target.value } })} />
 
         <div style={section}>
-          对话背景
-          <button onClick={addContext} style={smallBtn}>+ 新建</button>
+          {t('contextSection')}
+          <button onClick={addContext} style={smallBtn}>{t('btnNew')}</button>
         </div>
 
         <select style={inp} value={s.activeContextId ?? ''}
           onChange={(e) => update({ ...s, activeContextId: e.target.value || null })}>
-          <option value="">（不使用背景）</option>
+          <option value="">{t('noContext')}</option>
           {s.contexts.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
@@ -70,15 +72,15 @@ export function MemoryPanel({ onClose }: { onClose: () => void }) {
 
         {activeCtx && (
           <>
-            <input style={inp} placeholder="背景名称" value={activeCtx.name}
+            <input style={inp} placeholder={t('fieldCtxName')} value={activeCtx.name}
               onChange={(e) => updateCtx('name', e.target.value)} />
-            <textarea style={ta} placeholder="项目背景" value={activeCtx.background}
+            <textarea style={ta} placeholder={t('fieldBackground')} value={activeCtx.background}
               onChange={(e) => updateCtx('background', e.target.value)} />
-            <textarea style={ta} placeholder="当前环境（技术栈/团队等）" value={activeCtx.environment}
+            <textarea style={ta} placeholder={t('fieldEnvironment')} value={activeCtx.environment}
               onChange={(e) => updateCtx('environment', e.target.value)} />
-            <textarea style={ta} placeholder="当前进度" value={activeCtx.progress}
+            <textarea style={ta} placeholder={t('fieldProgress')} value={activeCtx.progress}
               onChange={(e) => updateCtx('progress', e.target.value)} />
-            <button onClick={deleteCtx} style={delBtn}>删除此背景</button>
+            <button onClick={deleteCtx} style={delBtn}>{t('btnDelete')}</button>
           </>
         )}
       </div>

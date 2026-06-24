@@ -12,6 +12,7 @@ export interface ConversationContext {
   environment: string; // 当前环境（技术栈、团队等）
   progress: string;    // 当前进度
   handoff?: string;   // 接力摘要
+  urls?: string[];   // 这个背景涉及过的对话 URL 列表
 }
 
 export interface MemoryState {
@@ -47,14 +48,4 @@ export function getActiveContext(state: MemoryState): ConversationContext | null
 // —— 生成简短 id ——
 export function newId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-// —— 记录上次的对话 URL，用于检测"切换对话/切换LLM" ——
-export async function getLastUrl(): Promise<string | null> {
-  const r = await browser.storage.local.get('lastUrl');
-  return (r.lastUrl as string) ?? null;
-}
-
-export async function setLastUrl(url: string): Promise<void> {
-  await browser.storage.local.set({ lastUrl: url });
 }

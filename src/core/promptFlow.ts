@@ -8,6 +8,13 @@ export interface Question {
   options: string[];
 }
 
+// 根据语言生成"输出语言"指令，拼到 system prompt 末尾
+function langInstruction(lang: 'zh' | 'en'): string {
+  return lang === 'en'
+    ? '\n\nIMPORTANT: Respond in English. All questions, options, and text must be in English.'
+    : '\n\n重要：请用中文回答。所有问题、选项和文本都用中文。';
+}
+
 // 把画像+背景拼成一段"记忆上下文"文字
 export function buildMemoryContext(
   profile: Profile,
@@ -31,7 +38,8 @@ export function buildMemoryContext(
 export function buildQuestionMessages(
   convo: string,
   draft: string,
-  memory: string
+  memory: string,
+  lang: 'zh' | 'en' = 'zh'
 ): LLMMessage[] {
   return [
     {
@@ -46,7 +54,7 @@ export function buildQuestionMessages(
 - 选项文字里不要出现双引号
 格式严格如下（注意逗号）：
 {"questions":[{"id":"q1","question":"问题文字","type":"single","options":["选项A","选项B"]},{"id":"q2","question":"问题文字","type":"multi","options":["选项A","选项B"]}]}
-type 只能是 "single" 或 "multi"。`,
+type 只能是 "single" 或 "multi"。${langInstruction(lang)}`,
     },
     {
       role: 'user',
@@ -60,7 +68,8 @@ export function buildFinalPromptMessages(
   convo: string,
   draft: string,
   memory: string,
-  answers: { question: string; selected: string[]; note: string }[]
+  answers: { question: string; selected: string[]; note: string }[],
+  lang: 'zh' | 'en' = 'zh'
 ): LLMMessage[] {
   const answerText = answers
     .map((a) => {
@@ -88,7 +97,7 @@ export function buildFinalPromptMessages(
 - ⚠️ 只建议来源的名称/类型，绝不要编造具体网址链接（避免给出错误链接）。让用户自行搜索该机构名。
 如果用户不需要联网搜索，不要加入以上内容。
 
-只返回这段提问本身，不要解释、不要前后缀。用中文。`,
+只返回这段提问本身，不要解释、不要前后缀。${langInstruction(lang)}`,
     },
     {
       role: 'user',
@@ -101,11 +110,15 @@ export function buildFinalPromptMessages(
 export function buildContextExtractMessages(
   convo: string,
   draft: string,
-  oldContext: ConversationContext | null
+  oldContext: ConversationContext | null,
+  lang: 'zh' | 'en' = 'zh'
 ): LLMMessage[] {
   const oldText = oldContext
     ? `核心需求：${oldContext.background || '无'}；客观环境：${oldContext.environment || '无'}；项目进展：${oldContext.progress || '无'}`
     : '（无）';
+  const langRule = lang === 'en'
+    ? '\n【语言·强制】无论对话是什么语言，background/environment/progress 三个字段都必须用英文输出。'
+    : '\n【语言·强制】无论对话是什么语言，background/environment/progress 三个字段都必须用中文输出。';
   return [
     {
       role: 'system',
@@ -114,7 +127,7 @@ export function buildContextExtractMessages(
 - background：核心需求、要做什么
 - environment：客观环境，如电脑配置、技术栈
 - progress：项目进展
-合并规则：新信息覆盖旧的、未提到的保留、蒸馏掉寒暄冗余、不臆测。
+合并规则：新信息覆盖旧的、未提到的保留、蒸馏掉寒暄冗余、不臆测。${langRule}
 【严格输出】只输出合法 JSON，英文双引号和逗号，无markdown：
 {"background":"","environment":"","progress":""}
 输出合并后的完整内容，无信息则空字符串。`,
@@ -129,9 +142,13 @@ export function buildContextExtractMessages(
 // 低频：每积累若干次对话才提炼一次用户画像（稳定基本信息）
 export function buildProfileExtractMessages(
   recentConvos: string,
-  oldProfile: Profile
+  oldProfile: Profile,
+  lang: 'zh' | 'en' = 'zh'
 ): LLMMessage[] {
   const oldText = `身份：${oldProfile.identity || '无'}；认知水平：${oldProfile.domain || '无'}；提问偏好：${oldProfile.preferences || '无'}`;
+  const langRule = lang === 'en'
+    ? '\n【语言·强制】无论对话是什么语言，identity/domain/preferences 三个字段都必须用英文输出。'
+    : '\n【语言·强制】无论对话是什么语言，identity/domain/preferences 三个字段都必须用中文输出。';
   return [
     {
       role: 'system',
@@ -145,7 +162,7 @@ export function buildProfileExtractMessages(
 - 如果对话中出现更具体或更新的事实，要用它覆盖旧信息。例如旧画像是"18-25岁"，对话中用户说"我22岁"，则更新为"22岁"。
 - 旧画像中对话未涉及的部分，保持不变。
 - 只在确实有更准确信息时才改，不要凭空臆测。
-⚠️ 严禁写入具体项目、技术名词、临时需求。只保留换个项目也成立的概括信息。
+⚠️ 严禁写入具体项目、技术名词、临时需求。只保留换个项目也成立的概括信息。${langRule}
 【严格输出】只输出合法 JSON，英文双引号和逗号，无markdown：
 {"identity":"","domain":"","preferences":""}
 输出合并后的完整内容，无信息则空字符串。`,
@@ -158,11 +175,12 @@ export function buildProfileExtractMessages(
 }
 
 // 给对话背景起一个概括的名字
-export function buildNameContextMessages(convo: string, draft: string): LLMMessage[] {
+export function buildNameContextMessages(convo: string, draft: string,lang: 'zh' | 'en' = 'zh'): LLMMessage[] {
+  const langRule = lang === 'en' ? '用英文起名。' : '用中文起名。';
   return [
     {
       role: 'system',
-      content: `根据对话内容，给这个对话起一个简短的名字（不超过12个字），概括主题。只返回名字本身，不要引号、不要解释。`,
+      content: `根据对话内容，给这个对话起一个简短的名字（不超过12个字/词），概括主题。${langRule}只返回名字本身，不要引号、不要解释。`,
     },
     {
       role: 'user',
@@ -174,11 +192,15 @@ export function buildNameContextMessages(convo: string, draft: string): LLMMessa
 // 生成"对话接力摘要"——把当前对话打包成交接说明，供新对话/新LLM接手
 export function buildHandoffMessages(
   convo: string,
-  ctx: ConversationContext | null
+  ctx: ConversationContext | null,
+  lang: 'zh' | 'en' = 'zh'
 ): LLMMessage[] {
   const ctxText = ctx
     ? `项目：${ctx.name}；核心需求：${ctx.background || '无'}；环境：${ctx.environment || '无'}；进展：${ctx.progress || '无'}`
     : '（无背景）';
+  const langRule = lang === 'en'
+    ? '\n【语言·强制】无论对话是什么语言，交接说明都必须用英文输出。'
+    : '\n【语言·强制】无论对话是什么语言，交接说明都必须用中文输出。';
   return [
     {
       role: 'system',
@@ -191,7 +213,8 @@ export function buildHandoffMessages(
 4. 接下来要继续做什么
 5. 关键的事实、技术细节、约束（如配置、技术栈、已有决定）
 
-写成第一人称、可直接发给新AI的开场白，开头类似"我们正在继续一个之前的任务……"。简洁但不遗漏关键信息。只返回这段交接说明本身。`,
+写成第一人称、可直接发给新AI的开场白。简洁但不遗漏关键信息。${langRule}
+只返回这段交接说明本身。`,
     },
     {
       role: 'user',
@@ -227,9 +250,7 @@ export function parseProfileExtract(raw: string): Partial<Profile> {
 // 通用 JSON 容错解析
 function parseJSON(raw: string): any {
   let text = raw.trim();
-  // 去掉 markdown 代码块包裹
   text = text.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-  // 截取第一个 { 到最后一个 }
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start !== -1 && end !== -1) text = text.slice(start, end + 1);
@@ -237,9 +258,7 @@ function parseJSON(raw: string): any {
   try {
     return JSON.parse(text);
   } catch {
-    // 解析失败时打印原文，方便诊断
     console.error('[PromptCopilot] JSON 解析失败，原始返回：', text);
-    // 尝试修复常见问题：去掉尾随逗号（如 ],} 或 ,]）
     const fixed = text.replace(/,(\s*[}\]])/g, '$1');
     return JSON.parse(fixed);
   }

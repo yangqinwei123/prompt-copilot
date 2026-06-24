@@ -1,15 +1,31 @@
 import { useState } from 'react';
+import { useI18n } from '@/src/i18n';
 import { loadMemory, saveMemory } from '@/src/storage/memory';
 
-const AGE_OPTIONS = ['18岁以下', '18-25岁', '26-35岁', '36岁以上'];
-const DOMAIN_OPTIONS = ['计算机/IT', '设计/创意', '商业/管理', '学生', '其他'];
-const NEED_OPTIONS = ['写代码', '写作/文案', '学习/研究', '日常事务', '数据分析'];
+// 选项做成中英两版，按语言显示
+const AGE_OPTIONS = {
+  zh: ['18岁以下', '18-25岁', '26-35岁', '36岁以上'],
+  en: ['Under 18', '18-25', '26-35', 'Over 36'],
+};
+const DOMAIN_OPTIONS = {
+  zh: ['计算机/IT', '设计/创意', '商业/管理', '学生', '其他'],
+  en: ['Tech/IT', 'Design/Creative', 'Business', 'Student', 'Other'],
+};
+const NEED_OPTIONS = {
+  zh: ['写代码', '写作/文案', '学习/研究', '日常事务', '数据分析'],
+  en: ['Coding', 'Writing', 'Learning/Research', 'Daily Tasks', 'Data Analysis'],
+};
 
 export function Onboarding({ onDone }: { onDone: () => void }) {
+  const { t, lang } = useI18n();
   const [age, setAge] = useState('');
   const [domain, setDomain] = useState('');
   const [needs, setNeeds] = useState<string[]>([]);
   const [extra, setExtra] = useState('');
+
+  const ageOptions = AGE_OPTIONS[lang];
+  const domainOptions = DOMAIN_OPTIONS[lang];
+  const needOptions = NEED_OPTIONS[lang];
 
   function toggleNeed(n: string) {
     setNeeds((prev) =>
@@ -19,13 +35,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
   async function handleSave() {
     const m = await loadMemory();
-    // 把引导选择写入画像
+    const sep = lang === 'en' ? ', ' : '，';
+    const sep2 = lang === 'en' ? '; ' : '；';
+    const sep3 = lang === 'en' ? ', ' : '、';
     await saveMemory({
       ...m,
       profile: {
-        identity: [age, domain].filter(Boolean).join('，'),
+        identity: [age, domain].filter(Boolean).join(sep),
         domain: domain,
-        preferences: [needs.join('、'), extra].filter(Boolean).join('；'),
+        preferences: [needs.join(sep3), extra].filter(Boolean).join(sep2),
       },
       onboarded: true,
     });
@@ -41,40 +59,38 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   return (
     <div style={overlay}>
       <div style={modal}>
-        <h2 style={{ fontSize: 18, marginTop: 0 }}>欢迎使用 Prompt Copilot 👋</h2>
-        <p style={{ color: '#666', fontSize: 13 }}>
-          简单了解一下你，AI 提问会更贴合你。可跳过，之后在「记忆」里随时改。
-        </p>
+        <h2 style={{ fontSize: 18, marginTop: 0 }}>{t('onbWelcome')}</h2>
+        <p style={{ color: '#666', fontSize: 13 }}>{t('onbDesc')}</p>
 
-        <div style={section}>年龄段</div>
+        <div style={section}>{t('onbAge')}</div>
         <div style={chips}>
-          {AGE_OPTIONS.map((o) => (
+          {ageOptions.map((o) => (
             <button key={o} onClick={() => setAge(o)} style={age === o ? chipOn : chip}>{o}</button>
           ))}
         </div>
 
-        <div style={section}>专业领域</div>
+        <div style={section}>{t('onbDomain')}</div>
         <div style={chips}>
-          {DOMAIN_OPTIONS.map((o) => (
+          {domainOptions.map((o) => (
             <button key={o} onClick={() => setDomain(o)} style={domain === o ? chipOn : chip}>{o}</button>
           ))}
         </div>
 
-        <div style={section}>主要需求（可多选）</div>
+        <div style={section}>{t('onbNeeds')}</div>
         <div style={chips}>
-          {NEED_OPTIONS.map((o) => (
+          {needOptions.map((o) => (
             <button key={o} onClick={() => toggleNeed(o)} style={needs.includes(o) ? chipOn : chip}>{o}</button>
           ))}
         </div>
 
-        <div style={section}>补充说明（可选）</div>
+        <div style={section}>{t('onbExtra')}</div>
         <textarea value={extra} onChange={(e) => setExtra(e.target.value)}
-          placeholder="比如：编程初学者，回答时请解释术语"
+          placeholder={t('onbExtraPlaceholder')}
           style={ta} />
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button onClick={handleSave} style={primaryBtn}>保存并开始</button>
-          <button onClick={handleSkip} style={skipBtn}>跳过</button>
+          <button onClick={handleSave} style={primaryBtn}>{t('onbSave')}</button>
+          <button onClick={handleSkip} style={skipBtn}>{t('onbSkip')}</button>
         </div>
       </div>
     </div>

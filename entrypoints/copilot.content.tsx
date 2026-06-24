@@ -1,6 +1,7 @@
 import { getAdapter } from '@/src/adapters/registry';
 import { createRoot } from 'react-dom/client';
 import { Sidebar } from '@/src/ui/Sidebar';
+import { I18nProvider } from '@/src/i18n';
 
 export default defineContentScript({
   // 匹配所有支持的站点
@@ -21,6 +22,10 @@ export default defineContentScript({
     const host = document.createElement('div');
     host.id = 'prompt-copilot-root';
     document.body.appendChild(host);
-    createRoot(host).render(<Sidebar adapter={adapter} />);
+    createRoot(host).render(
+      <I18nProvider>
+        <Sidebar adapter={adapter} />
+      </I18nProvider>
+    );
   },
 });
